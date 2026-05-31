@@ -4,11 +4,15 @@ Medium_Dollar_Quote_Bypass.md
 # Offensive companion write-up (anonymized, but not for public hosting)
 Dollar_Quote_SQL_Injection_Attack.md
 
-# --- LaTeX build artifacts (keep the .tex and any .pdf you add) ---
+# --- Local LaTeX toolchain (tectonic binary + cache), never push ---
+.tools/
+
+# --- LaTeX build artifacts (keep the .tex and the compiled .pdf) ---
 *.aux
 *.log
 *.out
 *.toc
+*.xdv
 *.synctex.gz
 *.fls
 *.fdb_latexmk

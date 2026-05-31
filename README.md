@@ -2,6 +2,10 @@
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-blue.svg)](https://creativecommons.org/licenses/by/4.0/)
 
+<p align="center">
+  <img src="diagram-animated.svg" alt="Dollar-Quote Bypass attack chain: dollar-quote sanitizer evasion, scalar subquery injection, and zero-knowledge blind extraction" width="100%">
+</p>
+
 **Read the paper:** https://jrbusiness.github.io/dollar-quote-sqli/
 
 A blind SQL injection technique that uses PostgreSQL dollar-quoting (`$_$...$_$`)

@@ -32,8 +32,8 @@
       <bpmn:incoming>F_GwOracle_NoOracle</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:task id="Task_Extract" name="Extract value char-by-char&#10;substr()=CHAR, ASCII fallback for &#39; ; -">
-      <bpmn:incoming>F_Enum_Extract</bpmn:incoming>
       <bpmn:incoming>F_GwMore_Extract</bpmn:incoming>
+      <bpmn:incoming>F_Enum_Extract</bpmn:incoming>
       <bpmn:outgoing>F_Extract_GwMore</bpmn:outgoing>
     </bpmn:task>
     <bpmn:exclusiveGateway id="Gw_More" name="More chars / rows?">
@@ -48,52 +48,49 @@
     <bpmn:endEvent id="End_Exfil" name="Full secret exfiltration">
       <bpmn:incoming>F_Reconstruct_End</bpmn:incoming>
     </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F_Start_Probe" sourceRef="Start_Recon" targetRef="Task_Probe" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_Probe_GwBypass" sourceRef="Task_Probe" targetRef="Gw_Bypass" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_GwBypass_NotVuln" name="No: $ stripped" sourceRef="Gw_Bypass" targetRef="End_NotVuln" />
+    <bpmn:sequenceFlow id="F_GwBypass_Oracle" name="Yes: $_$ survives" sourceRef="Gw_Bypass" targetRef="Task_Oracle" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_Oracle_GwOracle" sourceRef="Task_Oracle" targetRef="Gw_Oracle" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_GwOracle_NoOracle" name="No" sourceRef="Gw_Oracle" targetRef="End_NoOracle" />
+    <bpmn:sequenceFlow id="F_GwOracle_Enum" name="Yes" sourceRef="Gw_Oracle" targetRef="Sub_Enumerate" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_GwMore_Extract" name="Yes: next position / row" sourceRef="Gw_More" targetRef="Task_Extract" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_Extract_GwMore" sourceRef="Task_Extract" targetRef="Gw_More" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_GwMore_Reconstruct" name="No: complete" sourceRef="Gw_More" targetRef="Task_Reconstruct" aio:animated="true" />
+    <bpmn:sequenceFlow id="F_Reconstruct_End" sourceRef="Task_Reconstruct" targetRef="End_Exfil" aio:animated="true" />
     <bpmn:subProcess id="Sub_Enumerate" name="Zero-knowledge enumeration (information_schema)">
       <bpmn:incoming>F_GwOracle_Enum</bpmn:incoming>
       <bpmn:outgoing>F_Enum_Extract</bpmn:outgoing>
-      <bpmn:startEvent id="Sub_Start" name="No prior knowledge">
-        <bpmn:outgoing>SF_Start_Schemas</bpmn:outgoing>
-        <bpmn:outgoing>Flow_1rrxfw8</bpmn:outgoing>
-      </bpmn:startEvent>
-      <bpmn:task id="Sub_Schemas" name="Discover schemas&#10;information_schema.schemata">
-        <bpmn:incoming>SF_Start_Schemas</bpmn:incoming>
-        <bpmn:incoming>Flow_1rrxfw8</bpmn:incoming>
-        <bpmn:outgoing>SF_Schemas_Tables</bpmn:outgoing>
-      </bpmn:task>
-      <bpmn:task id="Sub_Tables" name="Discover tables&#10;information_schema.tables">
-        <bpmn:incoming>SF_Schemas_Tables</bpmn:incoming>
-        <bpmn:outgoing>SF_Tables_Columns</bpmn:outgoing>
-      </bpmn:task>
-      <bpmn:task id="Sub_Columns" name="Discover columns&#10;information_schema.columns">
-        <bpmn:incoming>SF_Tables_Columns</bpmn:incoming>
-        <bpmn:outgoing>SF_Columns_Rows</bpmn:outgoing>
-      </bpmn:task>
+      <bpmn:endEvent id="Sub_End" name="Schema mapped">
+        <bpmn:incoming>SF_Rows_End</bpmn:incoming>
+      </bpmn:endEvent>
       <bpmn:task id="Sub_Rows" name="Discover rows&#10;(usernames, services)">
         <bpmn:incoming>SF_Columns_Rows</bpmn:incoming>
         <bpmn:outgoing>SF_Rows_End</bpmn:outgoing>
       </bpmn:task>
-      <bpmn:endEvent id="Sub_End" name="Schema mapped">
-        <bpmn:incoming>SF_Rows_End</bpmn:incoming>
-      </bpmn:endEvent>
-      <bpmn:sequenceFlow id="SF_Start_Schemas" sourceRef="Sub_Start" targetRef="Sub_Schemas" />
-      <bpmn:sequenceFlow id="SF_Schemas_Tables" sourceRef="Sub_Schemas" targetRef="Sub_Tables" />
-      <bpmn:sequenceFlow id="SF_Tables_Columns" sourceRef="Sub_Tables" targetRef="Sub_Columns" />
-      <bpmn:sequenceFlow id="SF_Columns_Rows" sourceRef="Sub_Columns" targetRef="Sub_Rows" />
-      <bpmn:sequenceFlow id="SF_Rows_End" sourceRef="Sub_Rows" targetRef="Sub_End" />
-      <bpmn:sequenceFlow id="Flow_1rrxfw8" sourceRef="Sub_Start" targetRef="Sub_Schemas" />
+      <bpmn:sequenceFlow id="SF_Rows_End" sourceRef="Sub_Rows" targetRef="Sub_End" aio:animated="true" />
+      <bpmn:task id="Sub_Columns" name="Discover columns&#10;information_schema.columns">
+        <bpmn:incoming>SF_Tables_Columns</bpmn:incoming>
+        <bpmn:outgoing>SF_Columns_Rows</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="SF_Columns_Rows" sourceRef="Sub_Columns" targetRef="Sub_Rows" aio:animated="true" />
+      <bpmn:task id="Sub_Tables" name="Discover tables&#10;information_schema.tables">
+        <bpmn:incoming>SF_Schemas_Tables</bpmn:incoming>
+        <bpmn:outgoing>SF_Tables_Columns</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="SF_Tables_Columns" sourceRef="Sub_Tables" targetRef="Sub_Columns" aio:animated="true" />
+      <bpmn:task id="Sub_Schemas" name="Discover schemas&#10;information_schema.schemata">
+        <bpmn:incoming>SF_Start_Schemas</bpmn:incoming>
+        <bpmn:outgoing>SF_Schemas_Tables</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:sequenceFlow id="SF_Schemas_Tables" sourceRef="Sub_Schemas" targetRef="Sub_Tables" aio:animated="true" />
+      <bpmn:startEvent id="Sub_Start" name="No prior knowledge">
+        <bpmn:outgoing>SF_Start_Schemas</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:sequenceFlow id="SF_Start_Schemas" sourceRef="Sub_Start" targetRef="Sub_Schemas" aio:animated="true" />
     </bpmn:subProcess>
-    <bpmn:sequenceFlow id="F_Start_Probe" sourceRef="Start_Recon" targetRef="Task_Probe" />
-    <bpmn:sequenceFlow id="F_Probe_GwBypass" sourceRef="Task_Probe" targetRef="Gw_Bypass" />
-    <bpmn:sequenceFlow id="F_GwBypass_NotVuln" name="No: $ stripped" sourceRef="Gw_Bypass" targetRef="End_NotVuln" />
-    <bpmn:sequenceFlow id="F_GwBypass_Oracle" name="Yes: $_$ survives" sourceRef="Gw_Bypass" targetRef="Task_Oracle" aio:animated="true" />
-    <bpmn:sequenceFlow id="F_Oracle_GwOracle" sourceRef="Task_Oracle" targetRef="Gw_Oracle" />
-    <bpmn:sequenceFlow id="F_GwOracle_NoOracle" name="No" sourceRef="Gw_Oracle" targetRef="End_NoOracle" />
-    <bpmn:sequenceFlow id="F_GwOracle_Enum" name="Yes" sourceRef="Gw_Oracle" targetRef="Sub_Enumerate" aio:twoWay="true" />
-    <bpmn:sequenceFlow id="F_Enum_Extract" sourceRef="Sub_Enumerate" targetRef="Task_Extract" />
-    <bpmn:sequenceFlow id="F_GwMore_Extract" name="Yes: next position / row" sourceRef="Gw_More" targetRef="Task_Extract" />
-    <bpmn:sequenceFlow id="F_Extract_GwMore" sourceRef="Task_Extract" targetRef="Gw_More" />
-    <bpmn:sequenceFlow id="F_GwMore_Reconstruct" name="No: complete" sourceRef="Gw_More" targetRef="Task_Reconstruct" />
-    <bpmn:sequenceFlow id="F_Reconstruct_End" sourceRef="Task_Reconstruct" targetRef="End_Exfil" />
+    <bpmn:sequenceFlow id="F_Enum_Extract" sourceRef="Sub_Enumerate" targetRef="Task_Extract" aio:animated="true" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1tbwr8m">
@@ -202,10 +199,6 @@
       <bpmndi:BPMNEdge id="DI_SF_Rows_End" bpmnElement="SF_Rows_End">
         <di:waypoint x="395" y="490" />
         <di:waypoint x="366" y="490" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1rrxfw8_di" bpmnElement="Flow_1rrxfw8">
-        <di:waypoint x="1022" y="490" />
-        <di:waypoint x="980" y="490" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_F_Start_Probe" bpmnElement="F_Start_Probe" bioc:stroke="#205022" color:border-color="#205022">
         <di:waypoint x="368" y="170" />

@@ -226,7 +226,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 \begin{table}[h]
 \centering
 \small
-\begin{tabularx}{\linewidth}{@{}c Y Y@{}}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{0.30\linewidth} >{\raggedright\arraybackslash}p{0.52\linewidth}@{}}
 \toprule
 \# & Flaw & Impact \\
 \midrule
@@ -245,7 +245,7 @@ unquoted column-name position is the injection point. \\[2pt]
 The function runs with the owner's privileges, potentially crossing schema
 boundaries. \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
 \subsection{Why This Evades the Application-Level Sanitizer}
@@ -478,7 +478,7 @@ working probes:
 \begin{table}[h]
 \centering
 \small
-\begin{tabularx}{\linewidth}{@{}Yl@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.80\linewidth} l@{}}
 \toprule
 Property & Result \\
 \midrule
@@ -492,7 +492,7 @@ Successful probes returned oracle results without SQL exceptions when sent direc
 ASCII fallback detected stripped \lstinline|-| characters & PASS \\
 Lowercase \lstinline|and| worked inside subqueries without triggering the parser split & PASS \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
 We then tested the same payloads through an OWASP CRS / ModSecurity reverse proxy
@@ -502,7 +502,7 @@ blocking mode enabled, paranoia level 1, and an inbound anomaly threshold of 5.
 \begin{table}[h]
 \centering
 \small
-\begin{tabularx}{\linewidth}{@{}Yll@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.58\linewidth} l l@{}}
 \toprule
 Probe Type & HTTP Result & CRS Result \\
 \midrule
@@ -515,7 +515,7 @@ Dollar-quoted character extraction probe            & 403 & Blocked \\
 ASCII fallback probe                                & 403 & Blocked \\
 \lstinline|information_schema| metadata probe       & 403 & Blocked \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
 The OWASP CRS test did \textbf{not} validate a WAF bypass claim. CRS blocked the
