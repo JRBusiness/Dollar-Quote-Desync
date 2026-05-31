@@ -17,7 +17,7 @@ prior knowledge of the database schema.
 In a lab run it pulled 9 of 9 synthetic API keys out of a protected schema across
 15,808 blind HTTP requests, every one returning HTTP 200.
 
-## Honest scope
+## Scope
 
 This is an **application-level sanitizer evasion, not a WAF bypass**. When the same
 payloads were replayed through a default OWASP Core Rule Set 4.25.0 deployment,

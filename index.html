@@ -15,7 +15,7 @@
 
 <meta property="og:type" content="article">
 <meta property="og:title" content="Dollar-Quote Bypass: A Blind SQL Injection Technique Against PostgreSQL">
-<meta property="og:description" content="Dollar-quoting to bypass a regex sanitizer, scalar subquery injection through an unquoted column name, and zero-knowledge blind extraction. Plus an honest WAF result.">
+<meta property="og:description" content="Dollar-quoting to bypass a regex sanitizer, scalar subquery injection through an unquoted column name, and zero-knowledge blind extraction against PostgreSQL PL/pgSQL.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dollar-Quote Bypass: Blind SQL Injection Against PostgreSQL">
 <meta name="twitter:description" content="Dollar-quoting bypass + scalar subquery injection + zero-knowledge blind extraction against PL/pgSQL.">
@@ -419,7 +419,7 @@ role:          admin</code></pre>
   <li><code>949110</code> &mdash; inbound anomaly score exceeded</li>
 </ul>
 <div class="callout">
-  <strong>Honest scope.</strong> The validated claim is narrower than "undetectable": this payload family avoids several traditional SQL injection markers and executes cleanly against the vulnerable PostgreSQL parser, but it is <em>detected by default OWASP CRS 4.25.0 in blocking mode</em>. A production detection claim requires testing against the target's actual HTTP path, WAF rules, database logs, and request-volume thresholds.
+  <strong>Scope.</strong> The validated claim is narrower than "undetectable": this payload family avoids several traditional SQL injection markers and executes cleanly against the vulnerable PostgreSQL parser, but it is <em>detected by default OWASP CRS 4.25.0 in blocking mode</em>. A production detection claim requires testing against the target's actual HTTP path, WAF rules, database logs, and request-volume thresholds.
 </div>
 <p>The corollary defines the technique's relevant threat model. The attack is meaningful against an application that relies on a <strong>custom, hand-rolled input sanitizer</strong>, such as the <code>regexp_replace</code> filter in Section 3, and that deploys <strong>no WAF, or a WAF tuned below the rules above</strong>. This describes a large class of legacy, internal, and enterprise PostgreSQL applications. Against such targets the application-level evasion is the entire attack; against a default CRS deployment it is not sufficient, and an additional WAF-evasion layer (outside this paper's scope) would be required.</p>
 
