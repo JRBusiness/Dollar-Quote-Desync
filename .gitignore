@@ -1,0 +1,26 @@
+# --- Files intentionally kept OUT of the public repo ---
+# Medium draft (publish on Medium instead, with canonical pointing to the page)
+Medium_Dollar_Quote_Bypass.md
+# Offensive companion write-up (anonymized, but not for public hosting)
+Dollar_Quote_SQL_Injection_Attack.md
+
+# --- LaTeX build artifacts (keep the .tex and any .pdf you add) ---
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+*.run.xml
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
