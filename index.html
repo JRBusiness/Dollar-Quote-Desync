@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dollar-Quote Bypass: A Blind SQL Injection Technique Against PostgreSQL</title>
+<title>Dollar-Quote Desync: captures the heart of it</title>
 
 <!-- EDIT these two URLs to your real GitHub Pages address before publishing -->
 <link rel="canonical" href="https://jrbusiness.github.io/dollar-quote-sqli/">
@@ -372,7 +372,6 @@ role:          admin</code></pre>
     <tr><td>twilio</td><td><code>9f8e7d6c5b4a3210987654321fedcba</code></td><td class="ok">YES</td></tr>
   </tbody>
 </table>
-<p><strong>9/9 services extracted with 100% accuracy</strong> through 15,808 blind HTTP requests. In the tested lab configuration, the successful probes produced normal boolean-oracle responses and did not require visible SQL error output.</p>
 
 <h2 id="detection">7. Detection Claim Validation</h2>
 <p>We separately validated the "undetected by traditional markers" claim against a Neon PostgreSQL 17.10 lab on May 29, 2026. The lab used <code>public.products</code> as the oracle table, <code>secret_vault.users</code> and <code>secret_vault.api_keys</code> as synthetic protected data, and a deliberately-vulnerable <code>public.codex_product_search(text)</code> function matching the parser shown above.</p>
