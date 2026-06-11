@@ -1,4 +1,4 @@
-# Dollar-Quote Bypass: A Blind SQL Injection Technique Against PostgreSQL
+# Dollar-Quote Desync: captures the heart of it
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-blue.svg)](https://creativecommons.org/licenses/by/4.0/)
 
@@ -14,9 +14,6 @@ through an unquoted column-name position in a dynamic `EXECUTE` statement, and
 extracts data one character at a time through a boolean oracle, all with zero
 prior knowledge of the database schema.
 
-In a lab run it pulled 9 of 9 synthetic API keys out of a protected schema across
-15,808 blind HTTP requests, every one returning HTTP 200.
-
 ## Scope
 
 This is an **application-level sanitizer evasion, not a WAF bypass**. When the same
@@ -31,8 +28,6 @@ in Section 7 of the paper.
 | File | What it is |
 |------|------------|
 | `index.html` | The full paper as a web page (this is what GitHub Pages serves) |
-| `Dollar_Quote_Bypass_Research_Paper.md` | The paper in Markdown |
-| `Dollar_Quote_Bypass.tex` | LaTeX source (for arXiv / PDF) |
 | `attack_chain.bpmn` | The attack chain as a BPMN diagram |
 | `diagram-animated.svg` | Architecture / attack-flow graphic |
 
